@@ -2,6 +2,8 @@ const express = require('express');
 const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -40,20 +42,33 @@ app.post('/generate-pdf', async (req, res) => {
   <span style="font-weight:400;color:#555;font-size:7pt">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
 </div>`;
 
-    const fullHtml = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<style>
+    // Load local fonts as base64 for embedding in PDF
+    let fontFaceStyle = '';
+    try {
+      const fontNormal = fs.readFileSync(path.join(__dirname, 'THSarabun.ttf'));
+      const fontBold = fs.readFileSync(path.join(__dirname, 'THSarabun Bold.ttf'));
+      const b64Normal = fontNormal.toString('base64');
+      const b64Bold = fontBold.toString('base64');
+      fontFaceStyle = `<style>
   @font-face {
     font-family: 'THSarabun';
-    src: url('https://raw.githubusercontent.com/ChuenkamonS/Memo/main/THSarabun.ttf') format('truetype');
+    src: url('data:font/truetype;base64,${b64Normal}') format('truetype');
     font-weight: normal;
   }
   @font-face {
     font-family: 'THSarabun';
-    src: url('https://raw.githubusercontent.com/ChuenkamonS/Memo/main/THSarabun%20Bold.ttf') format('truetype');
+    src: url('data:font/truetype;base64,${b64Bold}') format('truetype');
     font-weight: bold;
   }
-</style>
+</style>`;
+    } catch(e) {
+      console.warn('Font load failed, using system font:', e.message);
+      fontFaceStyle = '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">';
+    }
+
+    const fullHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+${fontFaceStyle}
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'THSarabun', 'Sarabun', serif; font-size: 10pt; color: #000; line-height: 1.75; padding: 0 8px; }
