@@ -14,7 +14,11 @@ app.post('/generate-pdf', async (req, res) => {
 
   let browser = null;
   try {
+    const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH ||
+      '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome';
+
     browser = await puppeteer.launch({
+      executablePath: chromePath,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       headless: 'new'
     });
