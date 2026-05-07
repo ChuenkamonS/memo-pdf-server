@@ -42,10 +42,21 @@ app.post('/generate-pdf', async (req, res) => {
 
     const fullHtml = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'THSarabun';
+    src: url('https://raw.githubusercontent.com/ChuenkamonS/Memo/main/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+  }
+  @font-face {
+    font-family: 'THSarabun';
+    src: url('https://raw.githubusercontent.com/ChuenkamonS/Memo/main/THSarabun%20Bold.ttf') format('truetype');
+    font-weight: bold;
+  }
+</style>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Sarabun', serif; font-size: 10pt; color: #000; line-height: 1.75; padding: 0 8px; }
+  body { font-family: 'THSarabun', 'Sarabun', serif; font-size: 10pt; color: #000; line-height: 1.75; padding: 0 8px; }
   table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 10pt; }
   th { background: #d0d0d0; font-weight: 700; text-align: center; padding: 4px 8px; border: 1px solid #555; }
   td { padding: 3px 8px; border: 1px solid #888; text-align: center; }
