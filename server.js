@@ -26,15 +26,22 @@ app.post('/generate-pdf', async (req, res) => {
       ? `<img src="${logoBase64}" style="height:36px;object-fit:contain;">`
       : `<span style="font-size:10pt;font-weight:700;color:#185FA5;">Orbit Digital</span>`;
 
-    const headerHtml = `<div style="width:100%;padding:4px 18mm 4px 18mm;display:flex;justify-content:space-between;align-items:center;font-size:8pt;font-family:sans-serif;border-bottom:0.5px solid #999;">
-      ${logoTag}
-      <span style="color:#555;font-size:7.5pt;">บริษัท ออร์บิท ดิจิทัล จำกัด</span>
-    </div>`;
+    const headerHtml = `
+<div style="width:100%;padding:10mm 20mm 0 20mm;box-sizing:border-box;">
+  ${logoTag}
+</div>`;
 
-    const footerHtml = `<div style="width:100%;padding:4px 18mm;text-align:center;font-size:8pt;font-family:sans-serif;font-weight:700;border-top:0.5px solid #999;">
-      บริษัท ออร์บิท ดิจิทัล จำกัด<br>
-      <span style="font-weight:400;color:#555;font-size:7pt;">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
-    </div>`;
+
+    const footerHtml = `
+<div style="width:100%;text-align:center;font-size:8pt;padding:0 20mm 10mm 20mm;box-sizing:border-box;">
+  <div style="border-top:0.5px solid #999;padding-top:6px;">
+    บริษัท ออร์บิท ดิจิทัล จำกัด<br/>
+    <span style="font-size:7pt;color:#555;">
+      51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร
+    </span>
+  </div>
+</div>`;
+
 
     const fullHtml = `<!DOCTYPE html>
 <html>
@@ -85,7 +92,7 @@ app.post('/generate-pdf', async (req, res) => {
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '30mm', right: '18mm', bottom: '28mm', left: '18mm' },
+      margin: { top: '40mm', right: '18mm', bottom: '35mm', left: '18mm' },
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
