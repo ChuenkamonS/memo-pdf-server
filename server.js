@@ -31,16 +31,16 @@ app.post('/generate-pdf', async (req, res) => {
       ? `<img src="${logoBase64}" style="height:28px;max-width:110px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
-    const headerHtml = `<div style="width:100%;padding:2px 18mm 2px;display:flex;justify-content:space-between;align-items:center;font-family:sans-serif;font-size:7.5pt;border-bottom:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
+    const headerHtml = `<html><head>${fontFaceStyle}</head><body style="margin:0;padding:0"><div style="width:100%;padding:2px 18mm 2px;display:flex;justify-content:space-between;align-items:center;font-family:'THSarabun','Sarabun',sans-serif;font-size:9pt;border-bottom:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
   ${logoTag}
   <div style="color:#555;text-align:right;">บริษัท ออร์บิท ดิจิทัล จำกัด</div>
-</div>`;
+</div></body></html>`;
 
     // ✅ Footer: company name + address
-    const footerHtml = `<div style="width:100%;padding:2px 18mm 2px;text-align:center;font-family:sans-serif;font-size:7.5pt;font-weight:700;border-top:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
+    const footerHtml = `<html><head>${fontFaceStyle}</head><body style="margin:0;padding:0"><div style="width:100%;padding:2px 18mm 2px;text-align:center;font-family:'THSarabun','Sarabun',sans-serif;font-size:9pt;font-weight:700;border-top:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
   บริษัท ออร์บิท ดิจิทัล จำกัด<br>
-  <span style="font-weight:400;color:#555;font-size:7pt">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
-</div>`;
+  <span style="font-weight:400;color:#555;font-size:8pt">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
+</div></body></html>`;
 
     // Load local fonts as base64 for embedding in PDF
     let fontFaceStyle = '';
