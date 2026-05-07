@@ -14,11 +14,28 @@ app.post('/generate-pdf', async (req, res) => {
 
   let browser = null;
   try {
-    const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH ||
-      '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome';
+    // Find Chrome executable - search common Render paths
+    const fs = require('fs');
+    const path = require('path');
+    
+    let chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || '';
+    
+    if(!chromePath || !fs.existsSync(chromePath)){
+      // Search for Chrome in Render cache
+      const cacheBase = '/opt/render/.cache/puppeteer/chrome';
+      if(fs.existsSync(cacheBase)){
+        const versions = fs.readdirSync(cacheBase);
+        for(const ver of versions){
+          const candidate = path.join(cacheBase, ver, 'chrome-linux64', 'chrome');
+          if(fs.existsSync(candidate)){ chromePath = candidate; break; }
+        }
+      }
+    }
+    
+    console.log('Using Chrome:', chromePath || 'default (auto-detect)');
 
     browser = await puppeteer.launch({
-      executablePath: chromePath,
+      ...(chromePath ? { executablePath: chromePath } : {}),
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       headless: 'new'
     });
