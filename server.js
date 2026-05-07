@@ -23,7 +23,7 @@ app.post('/generate-pdf', async (req, res) => {
 
     // Header/footer must use only inline styles and base64 images
     const logoTag = logoBase64
-      ? `<img src="${logoBase64}" style="height:28px;max-width:110px;object-fit:contain;">`
+      ? `<img src="${logoBase64}" style="height:42px;max-width:150px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
     const headerHtml = `<div style="width:100%;padding:2px 18mm 2px;display:flex;justify-content:space-between;align-items:center;font-family:sans-serif;font-size:7.5pt;border-bottom:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
@@ -69,7 +69,7 @@ app.post('/generate-pdf', async (req, res) => {
   .mp-sig-name { text-align: center; font-size: 10pt; font-weight: 700; }
   .mp-sig-role { text-align: center; font-size: 10pt; color: #333; }
   .mp-sig-date { text-align: center; font-size: 9pt; color: #666; margin-top: 2px; }
-  .mp-hdr { display: flex; justify-content: flex-end; align-items: flex-start; border-bottom: none; padding-bottom: 0; margin-bottom: 8px; }
+  .mp-hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #888; padding-bottom: 10px; margin-bottom: 14px; }
   .mp-logo { display: none !important; }
   .mp-hdr-right { text-align: right; font-size: 10pt; line-height: 2; }
   .num { font-weight: 700; }
@@ -86,7 +86,7 @@ app.post('/generate-pdf', async (req, res) => {
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '20mm', right: '18mm', bottom: '15mm', left: '18mm' },
+      margin: { top: '32mm', right: '18mm', bottom: '30mm', left: '18mm' },
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
