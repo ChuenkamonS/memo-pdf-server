@@ -38,18 +38,17 @@ app.post('/generate-pdf', async (req, res) => {
 
     // 2. Logo tag
     const logoTag = logoBase64
-      ? `<img src="${logoBase64}" style="height:28px;max-width:110px;object-fit:contain;">`
+      ? `<img src="${logoBase64}" style="height:56px;max-width:220px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
     // 3. Header/Footer templates (must embed font)
     const headerHtml = `<html><head><style>${fontCss}</style></head><body style="margin:0;padding:0">
-<div style="width:100%;padding:2px 18mm;display:flex;justify-content:space-between;align-items:center;font-family:${fontFamily};font-size:9pt;border-bottom:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;">
+<div style="width:100%;padding:2px 18mm;display:flex;align-items:center;-webkit-print-color-adjust:exact;background:#fff;">
   ${logoTag}
-  <div style="color:#555;">บริษัท ออร์บิท ดิจิทัล จำกัด</div>
 </div></body></html>`;
 
     const footerHtml = `<html><head><style>${fontCss}</style></head><body style="margin:0;padding:0">
-<div style="width:100%;padding:2px 18mm;text-align:center;font-family:${fontFamily};font-size:9pt;font-weight:700;border-top:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;">
+<div style="width:100%;padding:2px 18mm;text-align:center;font-family:${fontFamily};font-size:9pt;font-weight:700;-webkit-print-color-adjust:exact;background:#fff;">
   บริษัท ออร์บิท ดิจิทัล จำกัด<br>
   <span style="font-weight:400;color:#555;font-size:8pt;">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
 </div></body></html>`;
