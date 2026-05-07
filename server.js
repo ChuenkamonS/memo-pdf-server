@@ -1,10 +1,27 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Find Chrome executable path on Render
+function findChrome(){
+  if(process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)){
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  const cacheBase = '/opt/render/.cache/puppeteer/chrome';
+  if(fs.existsSync(cacheBase)){
+    for(const ver of fs.readdirSync(cacheBase)){
+      const candidate = path.join(cacheBase, ver, 'chrome-linux64', 'chrome');
+      if(fs.existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
 
 app.get('/', (req, res) => res.send('PDF Server is running!'));
 
@@ -14,25 +31,8 @@ app.post('/generate-pdf', async (req, res) => {
 
   let browser = null;
   try {
-    // Find Chrome executable - search common Render paths
-    const fs = require('fs');
-    const path = require('path');
-    
-    let chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || '';
-    
-    if(!chromePath || !fs.existsSync(chromePath)){
-      // Search for Chrome in Render cache
-      const cacheBase = '/opt/render/.cache/puppeteer/chrome';
-      if(fs.existsSync(cacheBase)){
-        const versions = fs.readdirSync(cacheBase);
-        for(const ver of versions){
-          const candidate = path.join(cacheBase, ver, 'chrome-linux64', 'chrome');
-          if(fs.existsSync(candidate)){ chromePath = candidate; break; }
-        }
-      }
-    }
-    
-    console.log('Using Chrome:', chromePath || 'default (auto-detect)');
+    const chromePath = findChrome();
+    console.log('Using Chrome:', chromePath || 'auto-detect');
 
     browser = await puppeteer.launch({
       ...(chromePath ? { executablePath: chromePath } : {}),
@@ -43,17 +43,22 @@ app.post('/generate-pdf', async (req, res) => {
     const page = await browser.newPage();
 
     const logoTag = logoBase64
-      ? `<img src="${logoBase64}" style="height:28px;max-width:110px;object-fit:contain;">`
+      ? `<img src="${logoBase64}" style="height:42px;max-width:150px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
-    const headerHtml = `<div style="width:100%;padding:2px 18mm 2px;display:flex;justify-content:space-between;align-items:center;font-family:sans-serif;font-size:7.5pt;border-bottom:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
+    const headerHtml = `
+<div style="width:100%;padding:10mm 20mm 0 20mm;box-sizing:border-box;">
   ${logoTag}
-  <div style="color:#555;text-align:right;">บริษัท ออร์บิท ดิจิทัล จำกัด</div>
 </div>`;
 
-    const footerHtml = `<div style="width:100%;padding:2px 18mm 2px;text-align:center;font-family:sans-serif;font-size:7.5pt;font-weight:700;border-top:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
-  บริษัท ออร์บิท ดิจิทัล จำกัด<br>
-  <span style="font-weight:400;color:#555;font-size:7pt">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
+    const footerHtml = `
+<div style="width:100%;text-align:center;font-size:8pt;padding:0 20mm 10mm 20mm;box-sizing:border-box;">
+  <div style="border-top:0.5px solid #999;padding-top:6px;">
+    บริษัท ออร์บิท ดิจิทัล จำกัด<br/>
+    <span style="font-size:7pt;color:#555;">
+      51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร
+    </span>
+  </div>
 </div>`;
 
     const fullHtml = `<!DOCTYPE html>
@@ -88,7 +93,7 @@ app.post('/generate-pdf', async (req, res) => {
   .mp-sig-name { text-align: center; font-size: 10pt; font-weight: 700; }
   .mp-sig-role { text-align: center; font-size: 10pt; color: #333; }
   .mp-sig-date { text-align: center; font-size: 9pt; color: #666; margin-top: 2px; }
-  .mp-hdr { display: flex; justify-content: flex-end; align-items: flex-start; border-bottom: none; padding-bottom: 0; margin-bottom: 8px; }
+  .mp-hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #888; padding-bottom: 10px; margin-bottom: 14px; }
   .mp-logo { display: none !important; }
   .mp-hdr-right { text-align: right; font-size: 10pt; line-height: 2; }
   .num { font-weight: 700; }
@@ -105,7 +110,7 @@ app.post('/generate-pdf', async (req, res) => {
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '20mm', right: '18mm', bottom: '15mm', left: '18mm' },
+      margin: { top: '32mm', right: '18mm', bottom: '30mm', left: '18mm' },
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
