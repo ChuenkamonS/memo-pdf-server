@@ -23,8 +23,8 @@ app.post('/generate-pdf', async (req, res) => {
 
     // Header/footer must use only inline styles and base64 images
     const logoTag = logoBase64
-      ? `<img src="${logoBase64}" style="height:36px;object-fit:contain;">`
-      : `<span style="font-size:10pt;font-weight:700;color:#185FA5;">Orbit Digital</span>`;
+      ? `<img src="${logoBase64}" style="height:42px;max-width:150px;object-fit:contain;">`
+      : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
     const headerHtml = `
 <div style="width:100%;padding:10mm 20mm 0 20mm;box-sizing:border-box;">
@@ -76,7 +76,7 @@ app.post('/generate-pdf', async (req, res) => {
   .mp-sig-role { text-align: center; font-size: 10pt; color: #333; }
   .mp-sig-date { text-align: center; font-size: 9pt; color: #666; margin-top: 2px; }
   .mp-hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #888; padding-bottom: 10px; margin-bottom: 14px; }
-  .mp-logo { max-height: 55px; max-width: 140px; object-fit: contain; }
+  .mp-logo { display: none !important; }
   .mp-hdr-right { text-align: right; font-size: 10pt; line-height: 2; }
   .num { font-weight: 700; }
   .mp-footer { display: none !important; }
@@ -92,7 +92,7 @@ app.post('/generate-pdf', async (req, res) => {
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '40mm', right: '18mm', bottom: '35mm', left: '18mm' },
+      margin: { top: '32mm', right: '18mm', bottom: '30mm', left: '18mm' },
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
