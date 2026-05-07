@@ -1,27 +1,11 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-
-// Find Chrome executable path on Render
-function findChrome(){
-  if(process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)){
-    return process.env.PUPPETEER_EXECUTABLE_PATH;
-  }
-  const cacheBase = '/opt/render/.cache/puppeteer/chrome';
-  if(fs.existsSync(cacheBase)){
-    for(const ver of fs.readdirSync(cacheBase)){
-      const candidate = path.join(cacheBase, ver, 'chrome-linux64', 'chrome');
-      if(fs.existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
-}
 
 app.get('/', (req, res) => res.send('PDF Server is running!'));
 
@@ -31,40 +15,33 @@ app.post('/generate-pdf', async (req, res) => {
 
   let browser = null;
   try {
-    const chromePath = findChrome();
-    console.log('Using Chrome:', chromePath || 'auto-detect');
-
     browser = await puppeteer.launch({
-      ...(chromePath ? { executablePath: chromePath } : {}),
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-      headless: 'new'
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
 
+    // ✅ Header: logo + company name only
     const logoTag = logoBase64
-      ? `<img src="${logoBase64}" style="height:42px;max-width:150px;object-fit:contain;">`
+      ? `<img src="${logoBase64}" style="height:28px;max-width:110px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
-    const headerHtml = `
-<div style="width:100%;padding:10mm 20mm 0 20mm;box-sizing:border-box;">
+    const headerHtml = `<div style="width:100%;padding:2px 18mm 2px;display:flex;justify-content:space-between;align-items:center;font-family:sans-serif;font-size:7.5pt;border-bottom:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
   ${logoTag}
+  <div style="color:#555;text-align:right;">บริษัท ออร์บิท ดิจิทัล จำกัด</div>
 </div>`;
 
-    const footerHtml = `
-<div style="width:100%;text-align:center;font-size:8pt;padding:0 20mm 10mm 20mm;box-sizing:border-box;">
-  <div style="border-top:0.5px solid #999;padding-top:6px;">
-    บริษัท ออร์บิท ดิจิทัล จำกัด<br/>
-    <span style="font-size:7pt;color:#555;">
-      51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร
-    </span>
-  </div>
+    // ✅ Footer: company name + address
+    const footerHtml = `<div style="width:100%;padding:2px 18mm 2px;text-align:center;font-family:sans-serif;font-size:7.5pt;font-weight:700;border-top:0.5px solid #aaa;-webkit-print-color-adjust:exact;background:#fff;line-height:1.25;">
+  บริษัท ออร์บิท ดิจิทัล จำกัด<br>
+  <span style="font-weight:400;color:#555;font-size:7pt">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
 </div>`;
 
     const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
+<html><head><meta charset="UTF-8">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -74,6 +51,8 @@ app.post('/generate-pdf', async (req, res) => {
   td { padding: 3px 8px; border: 1px solid #888; text-align: center; }
   td.tdl { text-align: left; }
   tr.tr-total td { font-weight: 700; background: #ebebeb; border-top: 1.5px solid #333; }
+  /* Table: avoid breaking mid-row */
+  tr { page-break-inside: avoid; break-inside: avoid; }
   .mp-title { text-align: center; font-size: 16pt; font-weight: 700; letter-spacing: 1px; margin-bottom: 14px; }
   .mp-field { display: flex; margin-bottom: 5px; }
   .mp-field-label { font-weight: 700; min-width: 80px; }
@@ -93,24 +72,25 @@ app.post('/generate-pdf', async (req, res) => {
   .mp-sig-name { text-align: center; font-size: 10pt; font-weight: 700; }
   .mp-sig-role { text-align: center; font-size: 10pt; color: #333; }
   .mp-sig-date { text-align: center; font-size: 9pt; color: #666; margin-top: 2px; }
-  .mp-hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #888; padding-bottom: 10px; margin-bottom: 14px; }
+  /* ✅ Show mp-hdr (docno/date in body) but hide logo inside it */
+  .mp-hdr { display: flex; justify-content: flex-end; align-items: flex-start; border-bottom: none; padding-bottom: 0; margin-bottom: 8px; }
   .mp-logo { display: none !important; }
   .mp-hdr-right { text-align: right; font-size: 10pt; line-height: 2; }
   .num { font-weight: 700; }
+  /* ✅ Hide in-body footer (use Puppeteer repeated footer instead) */
   .mp-footer { display: none !important; }
   .preview-wrap { background: transparent; }
-  .page-break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
 </style>
-</head>
-<body>${html}</body>
-</html>`;
+</head><body>${html}</body></html>`;
 
     await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 20000 });
 
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '32mm', right: '18mm', bottom: '30mm', left: '18mm' },
+      // ✅ margin ให้พอดีกับ header/footer
+      margin: { top: '20mm', right: '18mm', bottom: '15mm', left: '18mm' },
+      // ✅ displayHeaderFooter: true
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
