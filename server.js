@@ -61,7 +61,7 @@ ${googleFonts}
 <style>
   ${fontCss}
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:${fontFamily}; font-size:10pt; color:#000; line-height:1.75; padding:0 8px; }
+  body { font-family:${fontFamily}; font-size:14pt; color:#000; line-height:1.75; padding:0 8px; }
   table { width:100%; border-collapse:collapse; margin:6px 0; font-size:10pt; }
   th { background:#d0d0d0; font-weight:700; text-align:center; padding:4px 8px; border:1px solid #555; }
   td { padding:3px 8px; border:1px solid #888; text-align:center; }
