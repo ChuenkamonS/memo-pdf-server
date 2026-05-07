@@ -9,7 +9,7 @@ app.use(express.json({ limit: '10mb' }));
 app.get('/', (req, res) => res.send('PDF Server is running!'));
 
 app.post('/generate-pdf', async (req, res) => {
-  const { html, filename } = req.body;
+  const { html, filename, logoBase64 } = req.body;
   if (!html) return res.status(400).json({ error: 'Missing html' });
 
   let browser = null;
@@ -21,13 +21,29 @@ app.post('/generate-pdf', async (req, res) => {
 
     const page = await browser.newPage();
 
+    // Header/footer must use only inline styles and base64 images
+    const logoTag = logoBase64
+      ? `<img src="${logoBase64}" style="height:36px;object-fit:contain;">`
+      : `<span style="font-size:10pt;font-weight:700;color:#185FA5;">Orbit Digital</span>`;
+
+    const headerHtml = `<div style="width:100%;padding:4px 18mm 4px 18mm;display:flex;justify-content:space-between;align-items:center;font-size:8pt;font-family:sans-serif;border-bottom:0.5px solid #999;">
+      ${logoTag}
+      <span style="color:#555;font-size:7.5pt;">บริษัท ออร์บิท ดิจิทัล จำกัด</span>
+    </div>`;
+
+    const footerHtml = `<div style="width:100%;padding:4px 18mm;text-align:center;font-size:8pt;font-family:sans-serif;font-weight:700;border-top:0.5px solid #999;">
+      บริษัท ออร์บิท ดิจิทัล จำกัด<br>
+      <span style="font-weight:400;color:#555;font-size:7pt;">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
+    </div>`;
+
     const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'TH Sarabun New', Sarabun, serif; font-size: 10pt; color: #000; line-height: 1.75; padding: 0 8px; }
+  body { font-family: 'Sarabun', serif; font-size: 10pt; color: #000; line-height: 1.75; padding: 0 8px; }
   table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 10pt; }
   th { background: #d0d0d0; font-weight: 700; text-align: center; padding: 4px 8px; border: 1px solid #555; }
   td { padding: 3px 8px; border: 1px solid #888; text-align: center; }
@@ -36,11 +52,14 @@ app.post('/generate-pdf', async (req, res) => {
   .mp-title { text-align: center; font-size: 16pt; font-weight: 700; letter-spacing: 1px; margin-bottom: 14px; }
   .mp-field { display: flex; margin-bottom: 5px; }
   .mp-field-label { font-weight: 700; min-width: 80px; }
+  .mp-field-value { flex: 1; }
+  .mp-body { margin: 8px 0; }
   .mp-body p { text-indent: 3em; margin-bottom: 3px; }
   .mp-list { margin: 3px 0 3px 3em; }
   .mp-note { font-size: 9pt; color: #333; margin: 3px auto 8px; text-align: center; }
+  .mp-closing { margin: 8px 0 14px; }
   .mp-closing p { text-indent: 3em; font-size: 9.5pt; line-height: 1.7; }
-  .mp-approval { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #555; margin-top: 10px; page-break-inside: avoid; }
+  .mp-approval { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #555; margin-top: 10px; page-break-inside: avoid; break-inside: avoid; }
   .mp-appr-cell { padding: 6px 12px; display: flex; flex-direction: column; }
   .mp-appr-cell:first-child { border-right: 1px solid #555; }
   .mp-appr-head { font-size: 10pt; font-weight: 700; margin-bottom: 4px; }
@@ -52,34 +71,21 @@ app.post('/generate-pdf', async (req, res) => {
   .mp-hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #888; padding-bottom: 10px; margin-bottom: 14px; }
   .mp-logo { max-height: 55px; max-width: 140px; object-fit: contain; }
   .mp-hdr-right { text-align: right; font-size: 10pt; line-height: 2; }
-  .num { text-decoration: underline; font-weight: 700; }
-  .mp-footer { display: none; }
+  .num { font-weight: 700; }
+  .mp-footer { display: none !important; }
   .preview-wrap { background: transparent; }
+  .page-break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
 </style>
 </head>
 <body>${html}</body>
 </html>`;
 
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 15000 });
-
-    const logoTag = `<div style="display:flex;align-items:center;padding:6px 0">
-      <span style="font-size:9pt;font-weight:700;color:#185FA5">Orbit Digital</span>
-    </div>`;
-
-    const headerHtml = `<div style="width:100%;padding:4px 20mm;display:flex;justify-content:space-between;align-items:center;font-family:'TH Sarabun New',Sarabun,serif;font-size:8pt;border-bottom:0.5px solid #aaa;-webkit-print-color-adjust:exact">
-      ${logoTag}
-      <span style="color:#555">บริษัท ออร์บิท ดิจิทัล จำกัด</span>
-    </div>`;
-
-    const footerHtml = `<div style="width:100%;padding:4px 20mm;text-align:center;font-family:'TH Sarabun New',Sarabun,serif;font-size:8pt;font-weight:700;border-top:0.5px solid #aaa;-webkit-print-color-adjust:exact">
-      บริษัท ออร์บิท ดิจิทัล จำกัด<br>
-      <span style="font-weight:400;color:#555;font-size:7.5pt">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
-    </div>`;
+    await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 20000 });
 
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '28mm', right: '18mm', bottom: '28mm', left: '18mm' },
+      margin: { top: '30mm', right: '18mm', bottom: '28mm', left: '18mm' },
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
