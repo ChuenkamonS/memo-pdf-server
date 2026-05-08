@@ -66,6 +66,11 @@ ${googleFonts}
   td { padding:3px 8px; border:1px solid #888; text-align:center; font-size:14pt; }
   td.tdl { text-align:left; }
   tr { page-break-inside:avoid; break-inside:avoid; }
+  table { page-break-inside:auto; }
+  /* Account table wrapper - if near bottom, push to next page */
+  #pdf-acct-wrap, .mp-acct-wrap { page-break-before:auto; }
+  /* Any element with class mp-list or paragraph after note */
+  .mp-note + * { page-break-before:auto; }
   tr.tr-total td { font-weight:700; background:#ebebeb; border-top:1.5px solid #333; }
   .mp-title { text-align:center; font-size:20pt; font-weight:700; letter-spacing:1px; margin-bottom:14px; }
   .mp-field { display:flex; margin-bottom:5px; font-size:14pt; }
@@ -74,7 +79,7 @@ ${googleFonts}
   .mp-body { margin:8px 0; font-size:14pt; }
   .mp-body p { text-indent:3em; margin-bottom:3px; font-size:14pt; }
   .mp-list { margin:3px 0 3px 3em; font-size:14pt; }
-  .mp-note { font-size:12pt; color:#333; margin:3px auto 8px; text-align:center; }
+  .mp-note { font-size:14pt; color:#333; margin:3px auto 8px; text-align:center; }
   .mp-closing { margin:8px 0 14px; font-size:14pt; }
   .mp-closing p { text-indent:3em; font-size:14pt; line-height:1.7; }
   .mp-approval { display:grid; grid-template-columns:1fr 1fr; border:1px solid #555; margin-top:10px; page-break-inside:avoid; break-inside:avoid; }
@@ -109,7 +114,7 @@ ${googleFonts}
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '20mm', right: '18mm', bottom: '15mm', left: '18mm' },
+      margin: { top: '28mm', right: '18mm', bottom: '18mm', left: '18mm' },
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
