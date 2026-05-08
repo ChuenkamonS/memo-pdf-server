@@ -59,7 +59,7 @@ app.post('/generate-pdf', async (req, res) => {
 ${googleFonts}
 <style>
   ${fontCss}
-  * { box-sizing:border-box; margin:0; padding:0; }
+  * { box-sizing:border-box; margin:0; padding:0; font-size:14pt; }
   body { font-family:${fontFamily}; font-size:14pt; color:#000; line-height:1.75; padding:0 8px; }
   table { width:100%; border-collapse:collapse; margin:6px 0; font-size:14pt; }
   th { background:#d0d0d0; font-weight:700; text-align:center; padding:4px 8px; border:1px solid #555; font-size:14pt; }
