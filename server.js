@@ -9,30 +9,51 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// ── Speed fix 1: cache fonts at startup (read once, reuse every request) ──
+let _fontCss = null;
+function getFontCss() {
+  if (_fontCss !== null) return _fontCss;
+  try {
+    const b64n = fs.readFileSync(path.join(__dirname, 'THSarabun.ttf')).toString('base64');
+    const b64b = fs.readFileSync(path.join(__dirname, 'THSarabun Bold.ttf')).toString('base64');
+    _fontCss = `
+      @font-face { font-family:'THSarabun'; src:url('data:font/truetype;base64,${b64n}') format('truetype'); font-weight:normal; }
+      @font-face { font-family:'THSarabun'; src:url('data:font/truetype;base64,${b64b}') format('truetype'); font-weight:bold; }
+    `;
+    console.log('Fonts cached OK');
+  } catch(e) {
+    console.warn('Font load failed:', e.message);
+    _fontCss = '';
+  }
+  return _fontCss;
+}
+
+// ── Speed fix 2: reuse browser instance across requests ──
+let _browser = null;
+async function getBrowser() {
+  if (_browser && _browser.isConnected()) return _browser;
+  _browser = await puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+  });
+  console.log('Browser launched');
+  return _browser;
+}
+
+// ── Speed fix 3: /ping endpoint so Render never cold-starts ──
+app.get('/ping', (req, res) => res.send('pong'));
 app.get('/', (req, res) => res.send('PDF Server is running!'));
 
 app.post('/generate-pdf', async (req, res) => {
   const { html, filename, logoBase64 } = req.body;
   if (!html) return res.status(400).json({ error: 'Missing html' });
 
-  let browser = null;
+  let page = null;
   try {
-    // 1. Load fonts as base64
-    let fontCss = '';
-    try {
-      const fontNormal = fs.readFileSync(path.join(__dirname, 'THSarabun.ttf'));
-      const fontBold   = fs.readFileSync(path.join(__dirname, 'THSarabun Bold.ttf'));
-      const b64n = fontNormal.toString('base64');
-      const b64b = fontBold.toString('base64');
-      fontCss = `
-        @font-face { font-family:'THSarabun'; src:url('data:font/truetype;base64,${b64n}') format('truetype'); font-weight:normal; }
-        @font-face { font-family:'THSarabun'; src:url('data:font/truetype;base64,${b64b}') format('truetype'); font-weight:bold; }
-      `;
-      console.log('Fonts loaded OK');
-    } catch(e) {
-      console.warn('Font load failed:', e.message);
-    }
-
+    // 1. Fonts (cached)
+    const fontCss = getFontCss();
     const fontFamily = fontCss ? "'THSarabun',sans-serif" : "'Sarabun',sans-serif";
     const googleFonts = fontCss ? '' : '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">';
 
@@ -41,7 +62,7 @@ app.post('/generate-pdf', async (req, res) => {
       ? `<img src="${logoBase64}" style="height:56px;max-width:220px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
-    // 3. Header/Footer templates (must embed font)
+    // 3. Header/Footer templates
     const headerHtml = `<html><head><style>${fontCss}</style></head><body style="margin:0;padding:0">
 <div style="width:100%;padding:2px 18mm;display:flex;align-items:center;-webkit-print-color-adjust:exact;background:#fff;">
   ${logoTag}
@@ -67,9 +88,7 @@ ${googleFonts}
   td.tdl { text-align:left; }
   tr { page-break-inside:avoid; break-inside:avoid; }
   table { page-break-inside:auto; }
-  /* Account table wrapper - if near bottom, push to next page */
   #pdf-acct-wrap, .mp-acct-wrap { page-break-before:auto; }
-  /* Any element with class mp-list or paragraph after note */
   .mp-note + * { page-break-before:auto; }
   tr.tr-total td { font-weight:700; background:#ebebeb; border-top:1.5px solid #333; }
   .mp-title { text-align:center; font-size:20pt; font-weight:700; letter-spacing:1px; margin-bottom:14px; }
@@ -100,16 +119,12 @@ ${googleFonts}
 </style>
 </head><body>${html}</body></html>`;
 
-    // 5. Launch browser
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    });
+    // 5. Reuse browser, open new page per request
+    const browser = await getBrowser();
+    page = await browser.newPage();
 
-    const page = await browser.newPage();
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 20000 });
+    // Speed fix: domcontentloaded instead of networkidle0 (fonts are base64, no network needed)
+    await page.setContent(fullHtml, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
     const pdf = await page.pdf({
       format: 'A4',
@@ -127,11 +142,19 @@ ${googleFonts}
 
   } catch (err) {
     console.error('PDF error:', err.message);
+    // If browser crashed, reset it so next request gets a fresh one
+    _browser = null;
     res.status(500).json({ error: err.message });
   } finally {
-    if (browser) await browser.close().catch(() => {});
+    // Close only the page, not the browser
+    if (page) await page.close().catch(() => {});
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`PDF server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`PDF server running on port ${PORT}`);
+  // Pre-warm browser and fonts at startup
+  getFontCss();
+  getBrowser().catch(e => console.warn('Pre-warm browser failed:', e.message));
+});
