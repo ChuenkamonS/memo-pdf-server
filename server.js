@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// ── Speed fix 1: cache fonts at startup (read once, reuse every request) ──
+// ── Cache fonts at startup (read once, never again) ──
 let _fontCss = null;
 function getFontCss() {
   if (_fontCss !== null) return _fontCss;
@@ -28,41 +28,55 @@ function getFontCss() {
   return _fontCss;
 }
 
-// ── Speed fix 2: reuse browser instance across requests ──
+// ── Reuse browser + simple queue to prevent ETXTBSY crash ──
 let _browser = null;
+let _browserReady = false;
+let _queue = 0;
+
 async function getBrowser() {
   if (_browser && _browser.isConnected()) return _browser;
+  _browserReady = false;
   _browser = await puppeteer.launch({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath(),
     headless: chromium.headless,
   });
+  _browserReady = true;
   console.log('Browser launched');
   return _browser;
 }
 
-// ── Speed fix 3: /ping endpoint so Render never cold-starts ──
-app.get('/ping', (req, res) => res.send('pong'));
+async function waitForBrowser(maxWaitMs = 15000) {
+  const start = Date.now();
+  while (_queue > 0 && !_browserReady) {
+    if (Date.now() - start > maxWaitMs) throw new Error('Browser queue timeout');
+    await new Promise(r => setTimeout(r, 200));
+  }
+  return getBrowser();
+}
+
 app.get('/', (req, res) => res.send('PDF Server is running!'));
+app.get('/ping', (req, res) => res.send('pong'));
 
 app.post('/generate-pdf', async (req, res) => {
   const { html, filename, logoBase64 } = req.body;
   if (!html) return res.status(400).json({ error: 'Missing html' });
 
+  // FIX 1: sanitize filename — strip non-ASCII to prevent Content-Disposition error
+  const safeFilename = (filename || 'memo.pdf').replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_') || 'memo.pdf';
+
+  _queue++;
   let page = null;
   try {
-    // 1. Fonts (cached)
     const fontCss = getFontCss();
     const fontFamily = fontCss ? "'THSarabun',sans-serif" : "'Sarabun',sans-serif";
     const googleFonts = fontCss ? '' : '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">';
 
-    // 2. Logo tag
     const logoTag = logoBase64
       ? `<img src="${logoBase64}" style="height:56px;max-width:220px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
-    // 3. Header/Footer templates
     const headerHtml = `<html><head><style>${fontCss}</style></head><body style="margin:0;padding:0">
 <div style="width:100%;padding:2px 18mm;display:flex;align-items:center;-webkit-print-color-adjust:exact;background:#fff;">
   ${logoTag}
@@ -74,7 +88,6 @@ app.post('/generate-pdf', async (req, res) => {
   <span style="font-weight:400;color:#555;font-size:8pt;">51 ถนนนราธิวาสราชนครินทร์ แขวงสีลม เขตบางรัก กรุงเทพมหานคร</span>
 </div></body></html>`;
 
-    // 4. Full HTML
     const fullHtml = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 ${googleFonts}
@@ -119,11 +132,9 @@ ${googleFonts}
 </style>
 </head><body>${html}</body></html>`;
 
-    // 5. Reuse browser, open new page per request
-    const browser = await getBrowser();
+    // FIX 2: wait for queue, reuse browser, open new page per request
+    const browser = await waitForBrowser();
     page = await browser.newPage();
-
-    // Speed fix: domcontentloaded instead of networkidle0 (fonts are base64, no network needed)
     await page.setContent(fullHtml, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
     const pdf = await page.pdf({
@@ -136,17 +147,22 @@ ${googleFonts}
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename || 'memo.pdf'}"`);
+    // FIX 1: use safe ASCII filename in header, keep original in content-disposition utf-8
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(filename || 'memo.pdf')}`);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.send(pdf);
 
   } catch (err) {
     console.error('PDF error:', err.message);
-    // If browser crashed, reset it so next request gets a fresh one
-    _browser = null;
+    // FIX 2: if browser crashed, reset so next request gets a fresh one
+    if (err.message.includes('ETXTBSY') || err.message.includes('Protocol error') || err.message.includes('Target closed')) {
+      console.log('Browser crashed — resetting');
+      _browser = null;
+      _browserReady = false;
+    }
     res.status(500).json({ error: err.message });
   } finally {
-    // Close only the page, not the browser
+    _queue = Math.max(0, _queue - 1);
     if (page) await page.close().catch(() => {});
   }
 });
@@ -154,7 +170,6 @@ ${googleFonts}
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`PDF server running on port ${PORT}`);
-  // Pre-warm browser and fonts at startup
   getFontCss();
-  getBrowser().catch(e => console.warn('Pre-warm browser failed:', e.message));
+  getBrowser().catch(e => console.warn('Pre-warm failed:', e.message));
 });
