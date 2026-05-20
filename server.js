@@ -140,7 +140,7 @@ ${googleFonts}
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '28mm', right: '18mm', bottom: '18mm', left: '18mm' },
+      margin: { top: '38mm', right: '18mm', bottom: '18mm', left: '18mm' },
       displayHeaderFooter: true,
       headerTemplate: headerHtml,
       footerTemplate: footerHtml,
