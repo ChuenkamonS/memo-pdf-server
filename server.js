@@ -74,7 +74,7 @@ app.post('/generate-pdf', async (req, res) => {
     const googleFonts = fontCss ? '' : '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">';
 
     const logoTag = logoBase64
-      ? `<img src="${logoBase64}" style="height:56px;max-width:220px;object-fit:contain;">`
+      ? `<img src="${logoBase64}" style="height:84px;max-width:330px;object-fit:contain;">`
       : `<span style="font-size:9pt;font-weight:700;">Orbit Digital</span>`;
 
     const headerHtml = `<html><head><style>${fontCss}</style></head><body style="margin:0;padding:0">
